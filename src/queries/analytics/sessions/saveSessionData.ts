@@ -26,12 +26,12 @@ export async function saveSessionData(data: {
   }));
 
   return transaction([
-    client.sessionData.deleteMany({
+    client.session.deleteMany({
       where: {
         sessionId,
       },
     }),
-    client.sessionData.createMany({
+    client.session.createMany({
       data: flattenedData as any,
     }),
   ]);
