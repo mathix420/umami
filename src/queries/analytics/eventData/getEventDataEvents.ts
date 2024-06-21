@@ -33,7 +33,7 @@ async function relationalQuery(websiteId: string, filters: QueryFilters) {
         and event_data.created_at between {{startDate}} and {{endDate}}
         and website_event.event_name = {{event}}
       group by website_event.event_name, event_data.data_key, event_data.data_type, event_data.string_value
-      order by 1 asc, 2 asc, 3 asc, 4 desc
+      order by 1 asc, 2 asc, 3 asc, 5 desc
       `,
       params,
     );
@@ -81,12 +81,12 @@ async function clickhouseQuery(
         and created_at between {startDate:DateTime64} and {endDate:DateTime64}
         and event_name = {event:String}
       group by data_key, data_type, string_value, event_name
-      order by 1 asc, 2 asc, 3 asc, 4 desc
+      order by 1 asc, 2 asc, 3 asc, 5 desc
       limit 500
       `,
       params,
-    ).then(a => {
-      return Object.values(a).map(a => {
+    ).then(result => {
+      return Object.values(result).map((a: any) => {
         return {
           eventName: a.eventName,
           fieldName: a.fieldName,
@@ -113,8 +113,8 @@ async function clickhouseQuery(
     limit 500
     `,
     params,
-  ).then(a => {
-    return Object.values(a).map(a => {
+  ).then(result => {
+    return Object.values(result).map((a: any) => {
       return {
         eventName: a.eventName,
         fieldName: a.fieldName,

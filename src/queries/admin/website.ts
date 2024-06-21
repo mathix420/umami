@@ -1,7 +1,9 @@
 import { Prisma, Website } from '@prisma/client';
+import redis from '@umami/redis-client';
 import prisma from 'lib/prisma';
-import { FilterResult, WebsiteSearchFilter } from 'lib/types';
+import { PageResult, PageParams } from 'lib/types';
 import WebsiteFindManyArgs = Prisma.WebsiteFindManyArgs;
+import { ROLES } from 'lib/constants';
 
 async function findWebsite(criteria: Prisma.WebsiteFindUniqueArgs): Promise<Website> {
   return prisma.client.website.findUnique(criteria);
@@ -25,8 +27,8 @@ export async function getSharedWebsite(shareId: string) {
 
 export async function getWebsites(
   criteria: WebsiteFindManyArgs,
-  filters: WebsiteSearchFilter,
-): Promise<FilterResult<Website[]>> {
+  filters: PageParams,
+): Promise<PageResult<Website[]>> {
   const { query } = filters;
 
   const where: Prisma.WebsiteWhereInput = {
@@ -46,15 +48,49 @@ export async function getWebsites(
 export async function getAllWebsites(userId: string) {
   return prisma.client.website.findMany({
     where: {
-      userId,
+      OR: [
+        { userId },
+        {
+          team: {
+            deletedAt: null,
+            teamUser: {
+              some: {
+                userId,
+              },
+            },
+          },
+        },
+      ],
+      deletedAt: null,
+    },
+  });
+}
+
+export async function getAllUserWebsitesIncludingTeamOwner(userId: string) {
+  return prisma.client.website.findMany({
+    where: {
+      OR: [
+        { userId },
+        {
+          team: {
+            deletedAt: null,
+            teamUser: {
+              some: {
+                role: ROLES.teamOwner,
+                userId,
+              },
+            },
+          },
+        },
+      ],
     },
   });
 }
 
 export async function getUserWebsites(
   userId: string,
-  filters?: WebsiteSearchFilter,
-): Promise<FilterResult<Website[]>> {
+  filters?: PageParams,
+): Promise<PageResult<Website[]>> {
   return getWebsites(
     {
       where: {
@@ -78,8 +114,8 @@ export async function getUserWebsites(
 
 export async function getTeamWebsites(
   teamId: string,
-  filters?: WebsiteSearchFilter,
-): Promise<FilterResult<Website[]>> {
+  filters?: PageParams,
+): Promise<PageResult<Website[]>> {
   return getWebsites(
     {
       where: {
@@ -122,6 +158,7 @@ export async function resetWebsite(
   websiteId: string,
 ): Promise<[Prisma.BatchPayload, Prisma.BatchPayload, Website]> {
   const { client, transaction } = prisma;
+  const cloudMode = !!process.env.cloudMode;
 
   return transaction([
     client.eventData.deleteMany({
@@ -139,14 +176,20 @@ export async function resetWebsite(
         resetAt: new Date(),
       },
     }),
-  ]);
+  ]).then(async data => {
+    if (cloudMode) {
+      await redis.client.set(`website:${websiteId}`, data[3]);
+    }
+
+    return data;
+  });
 }
 
 export async function deleteWebsite(
   websiteId: string,
 ): Promise<[Prisma.BatchPayload, Prisma.BatchPayload, Website]> {
   const { client, transaction } = prisma;
-  const cloudMode = process.env.CLOUD_MODE;
+  const cloudMode = !!process.env.CLOUD_MODE;
 
   return transaction([
     client.eventData.deleteMany({
@@ -173,5 +216,11 @@ export async function deleteWebsite(
       : client.website.delete({
           where: { id: websiteId },
         }),
-  ]);
+  ]).then(async data => {
+    if (cloudMode) {
+      await redis.client.del(`website:${websiteId}`);
+    }
+
+    return data;
+  });
 }
