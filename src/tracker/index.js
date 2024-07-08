@@ -77,7 +77,8 @@
   const handlePush = (state, title, url) => {
     if (!url) return;
 
-    currentRef = currentUrl;
+    // Fix referrer collection: we want to keep the referrer along nuxt redirects
+    currentRef = document.referrer;
     currentUrl = parseURL(url.toString());
 
     if (currentUrl !== currentRef) {

@@ -15,6 +15,6 @@ export default {
       delimiters: ['', ''],
       preventAssignment: true,
     }),
-    terser({ compress: { evaluate: false } }),
+    terser({ compress: { evaluate: false }, format: { comments: false } }),
   ],
 };
