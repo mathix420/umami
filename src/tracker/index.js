@@ -77,11 +77,10 @@
   const handlePush = (state, title, url) => {
     if (!url) return;
 
-    // Fix referrer collection: we want to keep the referrer along nuxt redirects
-    currentRef = document.referrer;
+    oldUrl = currentUrl;
     currentUrl = parseURL(url.toString());
 
-    if (currentUrl !== currentRef) {
+    if (currentUrl !== oldUrl) {
       setTimeout(track, delayDuration);
     }
   };
@@ -250,7 +249,9 @@
   }
 
   let currentUrl = parseURL(href);
+  // Fix referrer collection: we want to keep the referrer along nuxt redirects
   let currentRef = referrer !== hostname ? referrer : '';
+  let oldUrl = '';
   let title = document.title;
   let cache;
   let initialized;
